@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flashcard Quiz App</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #fff4ef;
+      color: #482031;
+      font-family: Arial, sans-serif;
+    }
+    main { width: min(100%, 480px); }
+    h1 { margin: 0 0 20px; font-size: 26px; }
+    article {
+      background: white;
+      border: 1px solid #e7cdd4;
+      border-radius: 18px;
+      padding: 26px;
+      min-height: 190px;
+      overflow-wrap: anywhere;
+    }
+    #position { color: #735760; font-size: 14px; }
+    #cardText { font: 26px/1.4 Georgia, serif; white-space: pre-wrap; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    button {
+      cursor: pointer;
+      padding: 11px 15px;
+      border: 1px solid #d6bdc5;
+      border-radius: 8px;
+      background: white;
+      color: #482031;
+      font: inherit;
+    }
+    .primary { background: #780d38; color: white; border-color: #780d38; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    dialog {
+      width: min(90%, 420px);
+      border: 1px solid #d6bdc5;
+      border-radius: 14px;
+      padding: 24px;
+      color: #482031;
+    }
+    dialog::backdrop { background: #30131e66; }
+    label { display: block; margin: 12px 0 5px; }
+    textarea { width: 100%; padding: 8px; font: inherit; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Flashcard Quiz App</h1>
+    <article aria-live="polite">
+      <div id="position"></div>
+      <p id="cardText"></p>
+    </article>
+
+    <div class="row">
+      <button id="previous">Previous</button>
+      <button id="flip" class="primary">Show Answer</button>
+      <button id="next">Next</button>
+    </div>
+    <div class="row">
+      <button id="add">Add Card</button>
+      <button id="edit">Edit</button>
+      <button id="remove">Delete</button>
+    </div>
+  </main>
+
+  <dialog id="editor">
+    <form id="cardForm">
+      <h2 id="formTitle">Add Card</h2>
+      <label for="question">Question</label>
+      <textarea id="question" rows="2" required></textarea>
+      <label for="answer">Answer</label>
+      <textarea id="answer" rows="3" required></textarea>
+      <div class="row">
+        <button class="primary" type="submit">Save Card</button>
+        <button id="cancel" type="button">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const byId = id => document.getElementById(id);
+    const storageKey = "codealpha-flashcards-v1";
+    const starterCards = [
+      { question: "What does CNN stand for?", answer: "Convolutional Neural Network." },
+      { question: "What is TensorFlow?", answer: "A software library for building and training machine learning models." },
+      { question: "What is a training dataset?", answer: "A collection of examples a model learns from." }
+    ];
+
+    const savedCards = localStorage.getItem(storageKey);
+    let cards = savedCards === null ? starterCards : JSON.parse(savedCards);
+    let index = 0;
+    let showingAnswer = false;
+    let editing = false;
+
+    function render() {
+      const card = cards[index];
+      const side = showingAnswer ? "Answer" : "Question";
+      byId("position").textContent = card
+        ? `Card ${index + 1} of ${cards.length} · ${side}`
+        : "Empty deck";
+      byId("cardText").textContent = card
+        ? (showingAnswer ? card.answer : card.question)
+        : "Add a card to start studying.";
+
+      byId("flip").textContent = showingAnswer ? "Show Question" : "Show Answer";
+      byId("flip").disabled = !card;
+      byId("edit").disabled = !card;
+      byId("remove").disabled = !card;
+      byId("previous").disabled = index === 0;
+      byId("next").disabled = index >= cards.length - 1;
+    }
+
+    function showCard(newIndex) {
+      index = newIndex;
+      showingAnswer = false;
+      render();
+    }
+
+    function saveDeck() {
+      localStorage.setItem(storageKey, JSON.stringify(cards));
+    }
+
+    function openEditor(isEditing) {
+      editing = isEditing;
+      byId("formTitle").textContent = editing ? "Edit Card" : "Add Card";
+      byId("question").value = editing ? cards[index].question : "";
+      byId("answer").value = editing ? cards[index].answer : "";
+      byId("editor").showModal();
+      byId("question").focus();
+    }
+
+    byId("previous").onclick = () => showCard(index - 1);
+    byId("next").onclick = () => showCard(index + 1);
+    byId("flip").onclick = () => {
+      showingAnswer = !showingAnswer;
+      render();
+    };
+
+    byId("add").onclick = () => openEditor(false);
+    byId("edit").onclick = () => openEditor(true);
+    byId("cancel").onclick = () => byId("editor").close();
+
+    byId("cardForm").onsubmit = event => {
+      event.preventDefault();
+      const question = byId("question").value.trim();
+      const answer = byId("answer").value.trim();
+      if (!question || !answer) {
+        alert("Please enter both a question and an answer.");
+        return;
+      }
+      if (editing) {
+        cards[index] = { question, answer };
+      } else {
+        cards.push({ question, answer });
+        index = cards.length - 1;
+      }
+      saveDeck();
+      byId("editor").close();
+      showCard(index);
+    };
+
+    byId("remove").onclick = () => {
+      if (!confirm("Delete this card?")) return;
+      cards.splice(index, 1);
+      saveDeck();
+      showCard(Math.max(0, Math.min(index, cards.length - 1)));
+    };
+
+    render();
+  </script>
+</body>
+</html>
